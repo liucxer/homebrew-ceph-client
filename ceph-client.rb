@@ -1,17 +1,16 @@
 class CephClient < Formula
   desc "Ceph client tools and libraries"
   homepage "https://ceph.com"
-  url "https://download.ceph.com/tarballs/ceph-17.2.0.tar.gz"
-  sha256 "6cf2d838904f0c40a2c735790b543063ea675c727e6b7047ebddfa1e7505e71f"
+  url "https://github.com/ceph/ceph.git", :using => :git, :revision => "0def4cf21d897bbf911614d8e3fe32e14fb30f7f"
+  version "quincy-17.0.0-4483-g0def4cf21d8"
 
   bottle do
-    rebuild 2
-    root_url "https://github.com/mulbc/homebrew-ceph-client/releases/download/quincy-17.2.0-2"
-    sha256 cellar: :any, arm64_monterey: "ce4b9c49fa3f6dcea28819fc3a190dbe78b23a3685407bef666ab76b1d25c25d"
+    root_url "https://github.com/mulbc/homebrew-ceph-client/releases/download/quincy-17.0.0-4483"
+    sha256 cellar: :any, big_sur: "8796c05eaa6ac5065221ff6ba1b45201776666e5702f6573b8a3f857ba890d1f"
   end
 
   # depends_on "osxfuse"
-  depends_on "boost"
+  depends_on "boost" => :build
   depends_on "openssl" => :build
   depends_on "cmake" => :build
   depends_on "ninja" => :build
@@ -22,29 +21,15 @@ class CephClient < Formula
   depends_on "python3"
   depends_on "sphinx-doc" => :build
   depends_on "yasm"
-  def caveats
-    <<-EOS.undent
-      macFUSE must be installed prior to building this formula. macFUSE is also necessary
-      if you plan to use the FUSE support of CephFS. You can either install macFUSE from
-      https://osxfuse.github.io or use the following command:
-
-      brew install --cask macfuse
-    EOS
-  end
 
   resource "prettytable" do
-    url "https://files.pythonhosted.org/packages/cb/7d/7e6bc4bd4abc49e9f4f5c4773bb43d1615e4b476d108d1b527318b9c6521/prettytable-3.2.0.tar.gz"
-    sha256 "ae7d96c64100543dc61662b40a28f3b03c0f94a503ed121c6fca2782c5816f81"
+    url "https://files.pythonhosted.org/packages/d4/c6/d388b3d4992acf413d1b67101107b7f4651cc2835abd0bbd6661678eb2c1/prettytable-2.1.0.tar.gz"
+    sha256 "5882ed9092b391bb8f6e91f59bcdbd748924ff556bb7c634089d5519be87baa0"
   end
 
   resource "PyYAML" do
-    url "https://files.pythonhosted.org/packages/36/2b/61d51a2c4f25ef062ae3f74576b01638bebad5e045f747ff12643df63844/PyYAML-6.0.tar.gz"
-    sha256 "68fb519c14306fec9720a2a5b45bc9f0c8d1b9c72adf45c37baedfcd949c35a2"
-  end
-
-  resource "wcwidth" do
-    url "https://files.pythonhosted.org/packages/89/38/459b727c381504f361832b9e5ace19966de1a235d73cdbdea91c771a1155/wcwidth-0.2.5.tar.gz"
-    sha256 "c4d647b99872929fdb7bdcaa4fbe7f01413ed3d98077df798530e5b04f116c83"
+    url "https://files.pythonhosted.org/packages/64/c2/b80047c7ac2478f9501676c988a5411ed5572f35d1beff9cae07d321512c/PyYAML-5.3.1.tar.gz"
+    sha256 "b8eac752c5e14d3eca0e6dd9199cd627518cb5ec06add0de9d32baeee6fe645d"
   end
 
   patch :DATA
@@ -52,7 +37,6 @@ class CephClient < Formula
   def install
     ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["nss"].opt_lib}/pkgconfig"
     ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["openssl"].opt_lib}/pkgconfig"
-    ENV.prepend_path "PKG_CONFIG_PATH", "/usr/local/lib/pkgconfig"
     xy = Language::Python.major_minor_version "python3"
     ENV.prepend_create_path "PYTHONPATH", "#{Formula["cython"].opt_libexec}/lib/python#{xy}/site-packages"
     ENV.prepend_create_path "PYTHONPATH", libexec/"vendor/lib/python#{xy}/site-packages"
@@ -151,14 +135,6 @@ class CephClient < Formula
     end
 
     bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
-    %w[
-      ceph-conf
-      ceph-fuse
-      rados
-      rbd
-    ].each do |name|
-      system "install_name_tool", "-add_rpath", "/opt/homebrew/lib", "#{libexec}/bin/#{name}"
-    end
   end
 
   def caveats; <<~EOS
@@ -183,6 +159,26 @@ class CephClient < Formula
 end
 
 __END__
+diff --git a/src/auth/KeyRing.cc b/src/auth/KeyRing.cc
+index 2ddc0b4ab22..2efb8b67a3b 100644
+--- a/src/auth/KeyRing.cc
++++ b/src/auth/KeyRing.cc
+@@ -205,12 +205,12 @@ void KeyRing::decode(bufferlist::const_iterator& bl) {
+   __u8 struct_v;
+   auto start_pos = bl;
+   try {
++    decode_plaintext(start_pos);
++  } catch (...) {
++    keys.clear();
+     using ceph::decode;
+     decode(struct_v, bl);
+     decode(keys, bl);
+-  } catch (ceph::buffer::error& err) {
+-    keys.clear();
+-    decode_plaintext(start_pos);
+   }
+ }
+
 diff --git a/cmake/modules/Distutils.cmake b/cmake/modules/Distutils.cmake
 index 8dc69f0af51..0b2acaf160a 100644
 --- a/cmake/modules/Distutils.cmake
@@ -208,3 +204,4 @@ index 8dc69f0af51..0b2acaf160a 100644
      set(ENV{CPPFLAGS} \"-iquote${CMAKE_SOURCE_DIR}/src/include
                          -D'void0=dead_function\(void\)' \
                          -D'__Pyx_check_single_interpreter\(ARG\)=ARG \#\# 0' \
+
