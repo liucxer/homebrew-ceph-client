@@ -6,7 +6,6 @@ class CephClient < Formula
 
   depends_on python if MacOS.version <= :snow_leopard
 
-  depends_on :osxfuse
   depends_on "openssl" => :build
   depends_on "cmake" => :build
   depends_on "cython" => :build
@@ -41,7 +40,7 @@ class CephClient < Formula
               "-DWITH_SPDK=OFF",
               "-DWITH_SYSTEMD=OFF",
               "-DWITH_XFS=OFF"
-    system "make", "--directory=build", "rados", "rbd", "ceph-fuse", "manpages"
+    system "make", "--directory=build", "rados", "rbd",  "manpages"
     MachO.open("build/bin/rados").linked_dylibs.each do |dylib|
       unless dylib.start_with?("/tmp/")
         next
@@ -54,14 +53,7 @@ class CephClient < Formula
       end
       MachO::Tools.change_install_name("build/bin/rbd", dylib, "#{lib}/#{dylib.split('/')[-1]}")
     end
-    MachO.open("build/bin/ceph-fuse").linked_dylibs.each do |dylib|
-      unless dylib.start_with?("/tmp/")
-        next
-      end
-      MachO::Tools.change_install_name("build/bin/ceph-fuse", dylib, "#{lib}/#{dylib.split('/')[-1]}")
-    end
     bin.install "build/bin/ceph"
-    bin.install "build/bin/ceph-fuse"
     bin.install "build/bin/rados"
     bin.install "build/bin/rbd"
     lib.install "build/lib/libceph-common.0.dylib"
@@ -79,7 +71,6 @@ class CephClient < Formula
     man8.install "build/doc/man/ceph.8"
     man8.install "build/doc/man/librados-config.8"
     man8.install "build/doc/man/rados.8"
-    man8.install "build/doc/man/rbd-fuse.8"
     man8.install "build/doc/man/rbd-ggate.8"
     man8.install "build/doc/man/rbd-mirror.8"
     man8.install "build/doc/man/rbd-nbd.8"
@@ -97,7 +88,6 @@ class CephClient < Formula
 
   test do
     system "#{bin}/ceph", "--version"
-    system "#{bin}/ceph-fuse", "--version"
     system "#{bin}/rbd", "--version"
     system "#{bin}/rados", "--version"
   end
