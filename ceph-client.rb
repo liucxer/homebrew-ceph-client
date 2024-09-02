@@ -14,7 +14,7 @@ class CephClient < Formula
   depends_on "pkg-config" => :build
   depends_on "yasm"
 
-  patch :DATA
+
 
   def install
     ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["nss"].opt_lib}/pkgconfig"
